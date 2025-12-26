@@ -13,13 +13,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
-	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -100,38 +97,38 @@ func getVideoAspectRatio(filePath string) (string, error) {
 	return "other", nil
 }
 
-func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
-	// Create a presign client from the S3 client
-	presignClient := s3.NewPresignClient(s3Client)
+// func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
+// 	// Create a presign client from the S3 client
+// 	presignClient := s3.NewPresignClient(s3Client)
 
-	// Create the presigned request for GetObject
-	presignedReq, err := presignClient.PresignGetObject(context.Background(), &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}, s3.WithPresignExpires(expireTime))
-	if err != nil {
-		return "", fmt.Errorf("failed to presign request: %w", err)
-	}
+// 	// Create the presigned request for GetObject
+// 	presignedReq, err := presignClient.PresignGetObject(context.Background(), &s3.GetObjectInput{
+// 		Bucket: aws.String(bucket),
+// 		Key:    aws.String(key),
+// 	}, s3.WithPresignExpires(expireTime))
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to presign request: %w", err)
+// 	}
 
-	// Return the URL from the presigned request
-	return presignedReq.URL, nil
-}
+// 	// Return the URL from the presigned request
+// 	return presignedReq.URL, nil
+// }
 
-func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
-	// spilt videourl to get bucket / key tube-private-12345,portrait/vertical.mp4
-	bucket := strings.Split(*(video.VideoURL), ",")[0]
-	key := strings.Split(*(video.VideoURL), ",")[1]
+// func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
+// 	// spilt videourl to get bucket / key tube-private-12345,portrait/vertical.mp4
+// 	bucket := strings.Split(*(video.VideoURL), ",")[0]
+// 	key := strings.Split(*(video.VideoURL), ",")[1]
 
-	// generate presigned url
-	presignedURL, err := generatePresignedURL(cfg.s3Client, bucket, key, 24*time.Hour)
-	if err != nil {
-		return database.Video{}, err
-	}
+// 	// generate presigned url
+// 	presignedURL, err := generatePresignedURL(cfg.s3Client, bucket, key, 24*time.Hour)
+// 	if err != nil {
+// 		return database.Video{}, err
+// 	}
 
-	// return the video with presigned url
-	video.VideoURL = &presignedURL
-	return video, nil
-}
+// 	// return the video with presigned url
+// 	video.VideoURL = &presignedURL
+// 	return video, nil
+// }
 
 func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request) {
 	const maxMemory = 1 << 30
@@ -261,20 +258,20 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	// video url format https://<bucket-name>.s3.<region>.amazonaws.com/<key>
 	// videoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s/%s", cfg.s3Bucket, cfg.s3Region, filePrefix, fileKeyString)
 	// tube-private-12345,portrait/vertical.mp4
-	videoURL := fmt.Sprintf("%s,%s/%s", cfg.s3Bucket, filePrefix, fileKeyString)
+	videoURL := fmt.Sprintf("%s/%s/%s", cfg.s3CfDistribution, filePrefix, fileKeyString)
 	fmt.Println("videoURL", videoURL)
 
 	video.VideoURL = &videoURL
 	cfg.db.UpdateVideo(video)
 
 	// get the signed video
-	signedVideo, err := cfg.dbVideoToSignedVideo(video)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't get signed video", err)
-		return
-	}
+	// signedVideo, err := cfg.dbVideoToSignedVideo(video)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusInternalServerError, "Couldn't get signed video", err)
+	// 	return
+	// }
 
-	respondWithJSON(w, http.StatusOK, signedVideo)
+	respondWithJSON(w, http.StatusOK, video)
 
 	// respondWithJSON(w, http.StatusOK, database.Video{
 	// 	ID:           video.ID,
